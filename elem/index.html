@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cellular Automata Demo</title>
+  </head>
+  <body>
+    <div id="grid-container">
+      <canvas id="grid"></canvas>
+    </div>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        overflow: hidden;
+      }
+      #grid-container {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script>
+      const canvas = document.getElementById('grid');
+      const context = canvas.getContext('2d');
+
+      const minCellSize = 10;
+      const maxRemainderRatio = 0.25;
+
+      var cellSize;
+      var cellRows;
+      var cellCols;
+
+      var seeds = [];
+      var grid = [];
+
+      const states = {
+        'on': 'black',
+        'off': 'white'
+      }
+
+      var transitionRules = {
+        '111': 'off',
+        '110': 'off',
+        '101': 'off',
+        '100': 'on',
+        '011': 'on',
+        '010': 'on',
+        '001': 'on',
+        '000': 'off',
+      }
+      var offScreenState = "off";
+
+
+
+      function addSeed(x, y) {
+        if (!checkSeed(x, y)) {
+          seeds.push([x, y]);
+        }
+      }
+
+      function removeSeed(x, y) {
+        for (var i = 0; i < seeds.length; i++) {
+          if (seeds[i][0] == x && seeds[i][1] == y) {
+            seeds.splice(i, 1);
+          }
+        }
+      }
+
+      function clearSeeds() {
+        seeds = [];
+      }
+
+      function addCenterSeed() {
+        addSeed(Math.floor(cellCols / 2), 0);
+      }
+
+      function checkSeed(x, y) {
+        for (var i = 0; i < seeds.length; i++) {
+          if (seeds[i][0] == x && seeds[i][1] == y) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function flipSeed(x, y) {
+        if (checkSeed(x, y)) {
+          removeSeed(x, y);
+        } else {
+          addSeed(x, y);
+        }
+      }
+
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+
+      function setCellSize() {
+        cellSize = minCellSize;
+        while ((cellSize - (canvas.width % cellSize)) > (cellSize * maxRemainderRatio)) {
+          cellSize += 1;
+        }
+        cellRows = Math.ceil(canvas.height / cellSize);
+        cellCols = Math.ceil(canvas.width / cellSize);
+      }
+
+      function drawCheckerboard() {
+        for (var i = 0; i < cellRows; i++) {
+          for (var j = 0; j < cellCols; j++) {
+            if ( (i+j) % 2 == 0) {
+              context.fillStyle = states.on;
+            } else {
+              context.fillStyle = states.off;
+            }
+            var y = cellSize * i;
+            var x = cellSize * j;
+            context.fillRect(x, y, cellSize, cellSize);
+          }
+        }
+      }
+
+      function drawCells() {
+        context.fillStyle = states.on;
+        for (var row = 0; row < cellRows; row++) {
+          for (var col = 0; col < cellCols; col++) {
+            context.fillStyle = states[grid[row][col]];
+            var x = cellSize * col;
+            var y = cellSize * row;
+            context.fillRect(x, y, cellSize, cellSize);
+          }
+        }
+      }
+
+      function calculateGrid() {
+        grid = [];
+        var row = 0;
+        var col = 0;
+        var tempData;
+        // seed row
+        tempData = [];
+        for (col = 0; col < cellCols; col++) {
+          if (checkSeed(col, row)) {
+            tempData.push('on');
+          } else {
+            tempData.push('off');
+          }
+        }
+        grid.push(tempData);
+        // fill remainder according to rules
+        for (row = 1; row < cellRows; row++) {
+          prevRow = grid[row-1];
+          tempData = [];
+          for (col = 0; col < cellCols; col++) {
+            tempData.push(checkCell(prevRow, col));
+          }
+          grid.push(tempData);
+        }
+      }
+
+      function checkCell(prevRow, pos) {
+        var prevState = ''
+
+        // above, to left
+        if (pos == 0) {
+          if (offScreenState == 'off') {
+            prevState += '0';
+          } else {
+            prevState += '1';
+          }
+        } else {
+          if (prevRow[pos-1] == 'off') {
+            prevState += '0';
+          } else {
+            prevState += '1';
+          }
+        }
+
+        // directly above
+        if (prevRow[pos] == 'off') {
+          prevState += '0';
+        } else {
+          prevState += '1';
+        }
+
+        // above, to right
+        if (pos == (prevRow.length -1)) {
+          if (offScreenState == 'off') {
+            prevState += '0';
+          } else {
+            prevState += '1';
+          }
+        } else {
+          if (prevRow[pos+1] == 'off') {
+            prevState += '0';
+          } else {
+            prevState += '1';
+          }
+        }
+
+        return transitionRules[prevState];
+      }
+
+      function drawCanvas() {
+        resizeCanvas();
+        context.fillStyle = "grey";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        setCellSize();
+        calculateGrid();
+        drawCells();
+      }
+
+      canvas.onclick = function(e) {
+        var row = Math.floor(e.y / cellSize);
+        var col = Math.floor(e.x / cellSize);
+        flipSeed(col, row);
+        drawCanvas();
+      }
+
+      window.onresize = drawCanvas;
+      window.onload = drawCanvas;
+    </script>
+  </body>
+</html>
+<!-- 
+<style>
+    #container {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        background-color: lavender;
+    }
+    #canvas-box {
+        background-color: pink;
+        padding: 10px;
+    }
+    body {
+        margin: 0;
+        padding: 0;
+    }
+</style>
+
+
+<script>
+    const canbox = document.getElementById("canvas-box");
+    const mycan = document.getElementById("mycan");
+    const context = mycan.getContext("2d");
+
+    function randomRow(len, blackRate) {
+        var row = ""
+        for (var i = 0; i < len; i++) {
+            if (Math.random() >= blackRate) {
+                row += "0";
+            } else {
+                row += "1";
+            }
+        }
+        return row;
+    }
+
+    var cells = [ randomRow(200, 0.05)];
+    var rules = {
+        "111": "1",
+        "110": "0",
+        "101": "1",
+        "100": "0",
+        "011": "0",
+        "010": "1",
+        "001": "0",
+        "000": "1",
+    };
+    var nRows = cells[0].length;
+
+    function resizeCanvas() {
+        mycan.width = window.innerWidth;
+        mycan.height = window.innerHeight;
+    }
+
+    function setCanvasBackground(color) {
+        context.fillStyle = color;
+        context.fillRect(0, 0, mycan.width, mycan.height);
+    }
+
+    function getNextRow(prevRow) {
+        var newRow = "";
+        var prevCell;
+        for (var i = 0; i < prevRow.length; i++) {
+            if (i == 0) {
+                prevCell = prevRow.slice(-1) + prevRow.slice(0,2);
+            } else if (i == prevRow.length - 1) {
+                prevCell = prevRow.slice(i-1, i+1) + prevRow.slice(0, 1);
+            } else {
+                prevCell = prevRow.slice(i-1, i+2);
+            }
+            newRow += rules[prevCell];
+        }
+        return newRow;
+    }
+
+    function fillCells() {
+        cells = cells.slice(0, 1);
+        for (var i = 1; i < nRows; i++) {
+            cells.push(getNextRow(cells[i-1]));
+        }
+    }
+
+    function resetCanvas() {
+        context.clearRect(0, 0, mycan.width, mycan.height);
+    }
+
+    function getBlockSize() {
+        return Math.floor(mycan.width/cells[0].length);
+    }
+
+    function drawCells() {
+        resetCanvas();
+        var blockSize = getBlockSize();
+        for (var i = 0; i < nRows; i++) {
+            for (var j = 0; j < cells[0].length; j++) {
+                if (cells[i][j] == "1") {
+                    context.fillStyle = "black";
+                } else {
+                    context.fillStyle = "white";
+                }
+                context.fillRect(j*blockSize, i*blockSize, blockSize, blockSize);
+            }
+        }
+    }
+
+    resizeCanvas();
+    setCanvasBackground("white");
+    fillCells();
+    drawCells();
+</script> -->
